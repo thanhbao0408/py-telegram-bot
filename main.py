@@ -27,12 +27,18 @@ from telegram.ext import (
 CHOOSING, CREATE_PROJECT, LOG_WORK, CREATE_PLANNER, CREATE_VACATION = range(5)
 
 reply_keyboard = [
-    ['Create Project', 'Log Time'],
-    ['Submit Vacation', 'Create Planner Task'],
-    ['Done'],
+    ["Create Project", "Log Time"],
+    ["Submit Vacation", "Create Planner Task"],
+    ["Done"],
 ]
 
 markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+
+
+def command_info():
+    text = "Command list:\n/pma or /bb to start talking with BB\n"
+    text += "/project Project_Name to create project with name is: Project"
+
 
 def start(update: Update, _: CallbackContext) -> int:
     update.message.reply_text(
@@ -42,12 +48,16 @@ def start(update: Update, _: CallbackContext) -> int:
 
     return CHOOSING
 
+
 def regular_choice(update: Update, context: CallbackContext) -> int:
     text = update.message.text
-    context.user_data['choice'] = text
-    update.message.reply_text(f'Your {text.lower()}? Yes, I would love to hear about that!')
+    context.user_data["choice"] = text
+    update.message.reply_text(
+        f"Your {text.lower()}? Yes, I would love to hear about that!"
+    )
 
     return TYPING_REPLY
+
 
 def custom_choice(update: Update, _: CallbackContext) -> int:
     update.message.reply_text(
@@ -56,12 +66,13 @@ def custom_choice(update: Update, _: CallbackContext) -> int:
 
     return TYPING_CHOICE
 
+
 def received_information(update: Update, context: CallbackContext) -> int:
     user_data = context.user_data
     text = update.message.text
-    category = user_data['choice']
+    category = user_data["choice"]
     user_data[category] = text
-    del user_data['choice']
+    del user_data["choice"]
 
     update.message.reply_text(
         "Neat! Just so you know, this is what you already told me: You can tell me more, or change your opinion"
@@ -71,18 +82,20 @@ def received_information(update: Update, context: CallbackContext) -> int:
 
     return CHOOSING
 
+
 def done(update: Update, context: CallbackContext) -> int:
     user_data = context.user_data
-    if 'choice' in user_data:
-        del user_data['choice']
+    if "choice" in user_data:
+        del user_data["choice"]
 
     update.message.reply_text(
-        f"I learned these facts about you: {facts_to_str(user_data)}Until next time!",
+        f"Bye Bye!",
         reply_markup=ReplyKeyboardRemove(),
     )
 
     user_data.clear()
     return ConversationHandler.END
+
 
 def startSession():
     # Create the Updater and pass it your bot's token.
@@ -93,28 +106,16 @@ def startSession():
 
     # Add conversation handler with the states CHOOSING, TYPING_CHOICE and TYPING_REPLY
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('start', start)],
+        entry_points=[CommandHandler("start", start)],
         states={
-    # ['Create Project', 'Log Time'],
-    # ['Submit Vacation', 'Create Planner Task'],
-    # ['Done'],
+            # ['Create Project', 'Log Time'],
+            # ['Submit Vacation', 'Create Planner Task'],
+            # ['Done'],
             CHOOSING: [
-                MessageHandler(
-                    Filters.regex('^Create Project$'),
-                    createProject
-                ),
-                MessageHandler(
-                    Filters.regex('^Log Time$'),
-                    logWork
-                ),
-                MessageHandler(
-                    Filters.regex('^Create Planner Task$'),
-                    newTask
-                ),
-                MessageHandler(
-                    Filters.regex('^Submit Vacation$'),
-                    custom_choice
-                ),
+                MessageHandler(Filters.regex("^Create Project$"), createProject),
+                MessageHandler(Filters.regex("^Log Time$"), logWork),
+                MessageHandler(Filters.regex("^Create Planner Task$"), newTask),
+                MessageHandler(Filters.regex("^Submit Vacation$"), custom_choice),
             ],
             # TYPING_CHOICE: [
             #     MessageHandler(
@@ -128,9 +129,9 @@ def startSession():
             #         received_information,
             #     )
             # ],
-            CREATE_PROJECT: [MessageHandler(Filters.text, processingCreateProject)]
+            CREATE_PROJECT: [MessageHandler(Filters.text, processingCreateProject)],
         },
-        fallbacks=[MessageHandler(Filters.regex('^Done$'), done)],
+        fallbacks=[MessageHandler(Filters.regex("^Done$"), done)],
     )
 
     dispatcher.add_handler(conv_handler)
@@ -143,9 +144,15 @@ def startSession():
     # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()
 
+    # stop the conversation if timeout 10mins
+    time.sleep(600)
+    ConversationHandler.END
+
+
 # def inputUserId(update: Update, context: CallbackContext)
 #     text = update.message.text
 #     context.user_data['user-id'] = text
+
 
 def createProject(update: Update, context: CallbackContext):
     update.message.reply_text(
@@ -154,17 +161,30 @@ def createProject(update: Update, context: CallbackContext):
     )
     return CREATE_PROJECT
 
+
 def processingCreateProject(update: Update, context: CallbackContext):
     global pmarUrl, pmaRequestVerificationToken
-    replied = 'Processing Creating Project...'
-    requests.get(url1+'sendMessage',
-                 params=dict(chat_id=update['message']['chat']['id'], text=replied))
-        
+    replied = "Processing Creating Project..."
+    requests.get(
+        url1 + "sendMessage",
+        params=dict(chat_id=update["message"]["chat"]["id"], text=replied),
+    )
+
     projects = update.message.text
+
+    createProjectsHelper(projects)
+
+    # done process
+    update.message.reply_text(
+        "Creating Project successfully",
+        reply_markup=markup,
+    )
+    return CHOOSING
+
+
+def createProjectsHelper(projects):
     if "*" in projects:
-        update.message.reply_text(
-            "The input text contains *. Please input again!"
-        )
+        update.message.reply_text("The input text contains *. Please input again!")
         return CREATE_PROJECT
 
     projectsArr = projects.splitlines()
@@ -174,7 +194,7 @@ def processingCreateProject(update: Update, context: CallbackContext):
     # generate request text, refer to examples.js file
     webbrowser.open(f"{pmaUrl}/project/submitportal")
     time.sleep(7)
-    keyboard.send('ctrl+shift+j')
+    keyboard.send("ctrl+shift+j")
 
     projectsText = ""
     for project in projectsArr[:-1]:
@@ -204,47 +224,49 @@ def processingCreateProject(update: Update, context: CallbackContext):
     time.sleep(3)
     keyboard.write(requestText)
     time.sleep(1)
-    keyboard.send('enter')
+    keyboard.send("enter")
 
-    # done process
-    update.message.reply_text(
-        "Creating Project successfully",
-        reply_markup=markup,
-    )
-    return CHOOSING
 
 def logWork(update: Update, context: CallbackContext):
     update.message.reply_text(
         "Please input project No, date, hours on one line. separate by space. (not supported yet: multiple value can be input by multi line) \n"
         "For example:\n"
-        "PMA-1 Dec/20/2021 4.5" 
+        "PMA-1 Dec/20/2021 4.5"
     )
     return LOG_WORK
 
+
 def processingLogWork(update: Update, context: CallbackContext):
-    replied = 'Processing Log Work...'
-    requests.get(url1+'sendMessage',
-                 params=dict(chat_id=update['message']['chat']['id'], text=replied))
-    
+    replied = "Processing Log Work..."
+    requests.get(
+        url1 + "sendMessage",
+        params=dict(chat_id=update["message"]["chat"]["id"], text=replied),
+    )
+
+
 def newVacation(update: Update, context: CallbackContext):
     update.message.reply_text(
         "Please input date, type of vacation ,hours on one line. separate by space. multiple value can be input by multi line\n "
         "For example:\n"
         "Dec/20/2021 annual 4.5\n"
-        "Dec/21/2021 annual 0.5" 
+        "Dec/21/2021 annual 0.5"
     )
     return CREATE_VACATION
 
-def processingNewVacation(update: Update, context: CallbackContext):
-    replied = 'Processing New Vacation...'
-    requests.get(url1+'sendMessage',
-                 params=dict(chat_id=update['message']['chat']['id'], text=replied))
 
-def newTask(update: Update, context: CallbackContext): 
+def processingNewVacation(update: Update, context: CallbackContext):
+    replied = "Processing New Vacation..."
+    requests.get(
+        url1 + "sendMessage",
+        params=dict(chat_id=update["message"]["chat"]["id"], text=replied),
+    )
+
+
+def newTask(update: Update, context: CallbackContext):
     update.message.reply_text(
         "Please input project No, date, hours on one line. separate by space. (not supported yet: multiple value can be input by multi line) \n"
         "For example:\n"
-        "PMA-1 Dec/20/2021 4.5" 
+        "PMA-1 Dec/20/2021 4.5"
     )
     return CREATE_PLANNER
 
@@ -253,25 +275,51 @@ def main():
     global url1, url, last_update, token, lang, owner
     req = requests.get(url).json()
 
-    for update in req['result']:
-        if last_update < update['update_id']:
-            last_update = update['update_id']
-            if update['message']['from']['username'] == owner:
-                if update['message']['text'] == 'hi' or 'halo' or 'Halo' or 'Hi' or '/start':
+    for update in req["result"]:
+        if last_update < update["update_id"]:
+            last_update = update["update_id"]
+            if update["message"]["from"]["username"] == owner:
+                if update["message"]["text"].startswith("/project"):
+                    projectName = update["message"]["text"].replace("/project ", "")
+                    if len(projectName) > 1:
+                        createProjectsHelper(projectName)
+                    else:
+                        requests.get(
+                            url1 + "sendMessage",
+                            params=dict(
+                                chat_id=update["message"]["chat"]["id"],
+                                text="Please input Project Name!!\n\n" + command_info(),
+                            ),
+                        )
+                elif (
+                    update["message"]["text"] == "hi"
+                    or "halo"
+                    or "Halo"
+                    or "Hi"
+                    or "/start"
+                    or "/pma"
+                ):
                     startSession()
                 else:
+                    requests.get(
+                        url1 + "sendMessage",
+                        params=dict(
+                            chat_id=update["message"]["chat"]["id"], text=command_info()
+                        ),
+                    )
                     pass
 
     root.after(2, main)
 
+
 config = configparser.ConfigParser()
 config.sections()
-config.read('config.ini')
-pmaUrl = config['SETTINGS']['pma_url']
-pmaRequestVerificationToken = config['SETTINGS']['verify_token']
-token = config['SETTINGS']['tele_token']
-lang = config['SETTINGS']['language']
-owner = config['SETTINGS']['owner_username']
+config.read("config.ini")
+pmaUrl = config["SETTINGS"]["pma_url"]
+pmaRequestVerificationToken = config["SETTINGS"]["verify_token"]
+token = config["SETTINGS"]["tele_token"]
+lang = config["SETTINGS"]["language"]
+owner = config["SETTINGS"]["owner_username"]
 last_update = 0
 root = tkinter.Tk()
 root.title("Running")
@@ -286,13 +334,12 @@ note: Don't close this window if you want to use your bot!
 
 label = tkinter.Label(root, text=teks)
 label.pack()
-url1 = 'https://api.telegram.org/bot'+token+'/'
-url = url1+'getUpdates'
+url1 = "https://api.telegram.org/bot" + token + "/"
+url = url1 + "getUpdates"
 reqlast = requests.get(url).json()
 try:
-    last_update = reqlast['result'][-1]['update_id']
+    last_update = reqlast["result"][-1]["update_id"]
 except:
     pass
 root.after(2, main)
 root.mainloop()
-
